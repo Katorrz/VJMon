@@ -171,6 +171,14 @@ async def start(ctx):
     view = PokemonControlView(ctx)
     await ctx.send("Capture du jeu :", file=discord.File(path), view=view)
 
+@bot.command()
+async def save(ctx):
+    """Demande à DeSmuME de faire une save-state immédiate"""
+    # On écrit le mot-clé spécial dans input.txt
+    with open("input.txt", "w") as f:
+        f.write("SAVE")
+    await ctx.send("💾 Sauvegarde du jeu")
+
 
 @bot.command()
 async def capture(ctx):
