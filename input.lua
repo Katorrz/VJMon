@@ -16,9 +16,9 @@ local function onFrame()
   
 
     -- On ne lance le maintien que si la commande est une touche valide
-    local valid_keys = {up=true, down=true, left=true, right=true, A=true, B=true}
+    local valid_keys = {up=true, down=true, left=true, right=true, A=true, B=true, X=true, Y=true}
     if valid_keys[cmd] then
-      frames_to_press = 10
+      frames_to_press = 18
       current_key = cmd
       print("Début pression touche", current_key, "pour 10 frames")
     else
