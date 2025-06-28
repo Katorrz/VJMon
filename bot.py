@@ -28,13 +28,14 @@ class PokemonControlView(View):
         super().__init__(timeout=None)
         self.ctx = ctx
         self.last_message = None
+    
+    async def send_single_command(self, key: str):
+        with open("input.txt", "w") as f:
+            f.write(key)
+        await asyncio.sleep(0.3)
 
     async def handle_command(self, interaction: discord.Interaction, key: str, repeat=1):
-        await interaction.response.send_message(
-            f"Commande {key.upper()}{' x'+str(repeat) if repeat > 1 else ''} envoyée !",
-            ephemeral=True
-        )
-
+        await interaction.response.defer(ephemeral=True)  # ← NE RIEN AFFICHER
         for _ in range(repeat):
             with open("input.txt", "w") as f:
                 f.write(key)
@@ -56,6 +57,7 @@ class PokemonControlView(View):
             self.last_message = new_message
         else:
             await self.ctx.send("❌ Impossible de capturer DeSmuME.")
+
 
     # --- Ligne 0 ---
     @discord.ui.button(label="A", style=discord.ButtonStyle.success, row=0)
@@ -91,48 +93,78 @@ class PokemonControlView(View):
     async def y_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.handle_command(interaction, "Y")
 
-    # --- Ligne 2 (x2) ---
+    # --- Ligne 2 (x3) ---
     @discord.ui.button(label="A x2", style=discord.ButtonStyle.success, row=2)
     async def a_double_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.handle_command(interaction, "A", repeat=2)
+        await interaction.response.defer(ephemeral=True)
 
-    @discord.ui.button(label="⬆️ x2", style=discord.ButtonStyle.primary, row=2)
+        await self.send_single_command("A")
+        await asyncio.sleep(0.5)
+        await self.send_single_command("A")
+
+        # capture après les deux pressions
+        path = capture_desmume()
+        if path:
+            new_message = await self.ctx.send(file=discord.File(path), view=self)
+            if self.last_message:
+                try:
+                    await self.last_message.delete()
+                except discord.NotFound:
+                    pass
+            self.last_message = new_message
+        else:
+            await self.ctx.send("❌ Impossible de capturer DeSmuME.")
+
+
+
+    @discord.ui.button(label="⬆️ x3", style=discord.ButtonStyle.primary, row=2)
     async def up_double_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.handle_command(interaction, "up", repeat=2)
+        await self.handle_command(interaction, "up", repeat=3)
 
     @discord.ui.button(label="B x2", style=discord.ButtonStyle.danger, row=2)
     async def b_double_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.handle_command(interaction, "B", repeat=2)
 
-    # --- Ligne 3 (x2) ---
-    @discord.ui.button(label="⬅️ x2", style=discord.ButtonStyle.primary, row=3)
+    # --- Ligne 3 (x3) ---
+    @discord.ui.button(label="⬅️ x3", style=discord.ButtonStyle.primary, row=3)
     async def left_double_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.handle_command(interaction, "left", repeat=2)
+        await self.handle_command(interaction, "left", repeat=3)
 
-    @discord.ui.button(label="⬇️ x2", style=discord.ButtonStyle.primary, row=3)
+    @discord.ui.button(label="⬇️ x3", style=discord.ButtonStyle.primary, row=3)
     async def down_double_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.handle_command(interaction, "down", repeat=2)
+        await self.handle_command(interaction, "down", repeat=3)
 
-    @discord.ui.button(label="➡️ x2", style=discord.ButtonStyle.primary, row=3)
+    @discord.ui.button(label="➡️ x3", style=discord.ButtonStyle.primary, row=3)
     async def right_double_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.handle_command(interaction, "right", repeat=2)
+        await self.handle_command(interaction, "right", repeat=3)
 
     @discord.ui.button(label="🔄", style=discord.ButtonStyle.secondary, row=2)
     async def capture_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True)  # évite le "Thinking..."
+        await interaction.response.defer(ephemeral=True)
         path = capture_desmume()
+
         if path:
-            await interaction.followup.send(file=discord.File(path), ephemeral=False)
+            # Supprime l'ancien message si besoin
+            if self.last_message:
+                try:
+                    await self.last_message.delete()
+                except discord.NotFound:
+                    pass
+                
+            # Envoie une nouvelle frame avec la nouvelle view active
+            new_view = PokemonControlView(self.ctx)
+            new_view.last_message = await self.ctx.send(file=discord.File(path), view=new_view)
+
+            # Met à jour le pointeur vers le nouveau message
+            self.last_message = new_view.last_message
         else:
             await interaction.followup.send("❌ Capture échouée : DeSmuME non détecté.", ephemeral=True)
-
-
         
 
 capture_counter = 0
 def capture_desmume(output="screenshot.png"):
     global capture_counter
-    time.sleep(0.3)
+    time.sleep(0.4)
     try:
         win = gw.getWindowsWithTitle("DeSmuME")[0]
         if win.isMinimized or not win.visible:
